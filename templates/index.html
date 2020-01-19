@@ -1,0 +1,17 @@
+<html>
+    <head>
+        <title>GeckoCam</title>
+    </head>
+
+    <body>
+        <div style="text-align: center;">
+            <img src="stream.mjpg">
+        </div>
+
+        <div style="text-align: center;">
+            {% for image in images %}
+                <p>{{ image }}</p>
+            {% endfor %}
+        </div>
+    </body>
+</html>
