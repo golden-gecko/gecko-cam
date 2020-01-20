@@ -1,17 +1,11 @@
-<html>
-    <head>
-        <title>GeckoCam</title>
-    </head>
+{% set active_page = 'live' %}
 
-    <body>
-        <div style="text-align: center;">
-            <img src="stream.mjpg">
-        </div>
+{% extends 'layouts/base.html' %}
 
-        <div style="text-align: center;">
-            {% for image in images %}
-                <p>{{ image }}</p>
-            {% endfor %}
-        </div>
-    </body>
-</html>
+{% block title %}Live{% endblock %}
+
+{% block content %}
+    <div style="text-align: center;">
+        <img src="/stream">
+    </div>
+{% endblock %}

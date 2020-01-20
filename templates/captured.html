@@ -1,0 +1,15 @@
+{% set active_page = 'captured' %}
+
+{% extends 'layouts/base.html' %}
+
+{% block title %}Captured{% endblock %}
+
+{% block content %}
+    <div style="text-align: center;">
+        {% for image in images %}
+            <a href="{{ url_for('static', filename=image) }}" target="_blank">
+                <img src="{{ url_for('static', filename=image) }}" width="100">
+            </a>
+        {% endfor %}
+    </div>
+{% endblock %}
