@@ -4,10 +4,8 @@ import imutils
 import io
 import numpy
 import os
-import socketserver
 
-from http import HTTPStatus, server
-from jinja2 import Environment, FileSystemLoader
+from flask import Flask, render_template, Response
 from pathlib import Path
 from picamera import PiCamera
 from picamera.array import PiRGBArray
@@ -22,15 +20,14 @@ from utils import to_file_name, to_iso_format
 
 logger = get_logger()
 
+app = Flask(__name__, template_folder=config.template_directory)
+
 condition = Condition()
 
 frame_current = None
 frame_previous = None
 
 last_motion_detected = datetime.datetime.utcnow() - datetime.timedelta(seconds=config.motion_save_interval)
-
-template_loader = FileSystemLoader(searchpath=config.template_directory)
-template_environment = Environment(autoescape=True, loader=template_loader)
 
 
 def save_image_to_file(images, date):
@@ -128,64 +125,47 @@ def camera_worker():
         logger.exception('Failed: %s', e)
 
 
-class StreamingHandler(server.BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == '/':
-            images = Path('images').rglob('*.jpg')
-
-            content = template_environment.get_template('index.html')
-            content = content.render(images=images)
-            content = content.encode()
-
-            self.send_response(HTTPStatus.OK)
-            self.send_header('Content-Length', len(content))
-            self.send_header('Content-Type', 'text/html')
-            self.end_headers()
-            self.wfile.write(content)
-        elif self.path == '/stream.mjpg':
-            self.send_response(HTTPStatus.OK)
-            self.send_header('Age', 0)
-            self.send_header('Cache-Control', 'no-cache, private')
-            self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=FRAME')
-            self.send_header('Pragma', 'no-cache')
-            self.end_headers()
-
-            try:
-                while True:
-                    with condition:
-                        condition.wait()
-
-                        pil_im = Image.fromarray(frame_current)
-                        buf = io.BytesIO()
-                        pil_im.save(buf, format='JPEG')
-                        frame = buf.getvalue()
-
-                    self.wfile.write(b'--FRAME\r\n')
-                    self.send_header('Content-Length', len(frame))
-                    self.send_header('Content-Type', 'image/jpeg')
-                    self.end_headers()
-                    self.wfile.write(frame)
-                    self.wfile.write(b'\r\n')
-            except Exception as e:
-                logger.exception('Removed streaming client %s: %s', self.client_address, e)
-        else:
-            self.send_error(HTTPStatus.NOT_FOUND)
-            self.end_headers()
-
-
-class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
-    allow_reuse_address = True
-    daemon_threads = True
-
-
 def server_worker():
     try:
         logger.debug('Starting server worker...')
 
-        streaming_server = StreamingServer((config.host, config.port), StreamingHandler)
-        streaming_server.serve_forever()
+        app.run(host=config.host, port=config.port)
     except Exception as e:
         logger.exception('Failed: %s', e)
+
+
+def frame_generator():
+    try:
+        while True:
+            with condition:
+                condition.wait()
+
+                pil_im = Image.fromarray(frame_current)
+                buf = io.BytesIO()
+                pil_im.save(buf, format='JPEG')
+                frame = buf.getvalue()
+
+            yield b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n'
+    except Exception as e:
+        logger.exception('Failed: %s', e)
+
+
+@app.route('/')
+def route_index():
+    return render_template('index.html')
+
+
+@app.route('/captured')
+def route_captured():
+    images = Path(config.motion_save_directory).rglob('*.jpg')
+    images = [str(x).replace('{}/'.format(config.static_directory), '') for x in images]
+
+    return render_template('captured.html', images=images)
+
+
+@app.route('/stream')
+def stream():
+    return Response(frame_generator(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 def main():

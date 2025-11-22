@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pl">
+    <head>
+        {% include 'components/meta.html' %}
+
+        <title>{% block title %}{% endblock %} - GeckoCam</title>
+
+        {% include 'components/css.html' %}
+        {% include 'components/js.html' %}
+    </head>
+
+    <body>
+        {% include 'components/navigation.html' %}
+
+        <div class="container">
+            {% include 'components/alert.html' %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </body>
+</html>

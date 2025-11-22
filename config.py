@@ -8,3 +8,5 @@ host = '0.0.0.0'
 port = 8000
 
 template_directory = 'templates'
+
+static_directory = 'static'
