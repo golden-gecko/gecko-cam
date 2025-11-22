@@ -1,0 +1,12 @@
+[Unit]
+After=network.target syslog.target
+
+[Service]
+ExecStart=/home/pi/projects/geckocam/run.sh
+Group=pi
+User=pi
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
